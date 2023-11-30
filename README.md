@@ -1,8 +1,7 @@
 # GY-6463-ahd_project 
 
-## Charlie
-PC
-Control Unit
+## Charli
+PC and Control Unit
 
 ## Heng
 Instruction and Data Memory
