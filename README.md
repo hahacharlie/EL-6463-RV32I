@@ -1,6 +1,6 @@
 # GY-6463-ahd_project 
 
-## Charli
+## Charlie
 PC and Control Unit
 
 ## Heng
