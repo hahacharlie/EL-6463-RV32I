@@ -1,4 +1,4 @@
-# GY-6463-ahd_project 
+# GY-6463 Advanced Hardware Design Final Project
 
 ## Charlie
 ### PC 
