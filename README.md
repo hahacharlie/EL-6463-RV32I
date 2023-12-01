@@ -1,11 +1,13 @@
 # GY-6463-ahd_project 
 
 ## Charlie
-PC and Control Unit
+###PC 
+###Control Unit
 
 ## Heng
-Instruction and Data Memory
+###Instruction 
+###Data Memory
 
 ## Jessy
-Register File
-ALU
+###Register File
+###ALU
