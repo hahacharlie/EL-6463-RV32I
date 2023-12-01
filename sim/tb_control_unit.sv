@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-`include "../rtl/control_unit.sv"
 
 module tb_control_unit();
 
@@ -19,6 +18,11 @@ module tb_control_unit();
     );
 
     initial begin
+
+        $dumpfile("sim_control_unit.vcd"); //file to store value change dump (vcd)
+        $dumpvars(0,tb_control_unit); //store everything at the current level and below
+        $display("Starting Sim"); //print nice message at start
+
         // Test R-type instruction (e.g., ADD)
         instruction = 32'b00000000000100010000000110110011; // ADD x3, x2, x1
         #10;

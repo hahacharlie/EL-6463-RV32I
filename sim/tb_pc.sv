@@ -1,5 +1,4 @@
 `timescale 1ns / 1ps
-`include "../rtl/pc.sv"
 
 module tb_pc();
 
@@ -9,7 +8,7 @@ module tb_pc();
     logic [31:0] current_pc;
 
     // Instantiate the pc module
-    pc dut(
+    pc pc_0(
         .clk(clk),
         .reset(reset),
         .next_pc(next_pc),
@@ -24,6 +23,11 @@ module tb_pc();
 
     // Test sequence
     initial begin
+
+        $dumpfile("sim_pc.vcd"); //file to store value change dump (vcd)
+        $dumpvars(0,tb_pc); //store everything at the current level and below
+        $display("Starting Sim"); //print nice message at start
+
         // Initialize signals
         reset = 1;
         next_pc = 32'h01000000;

@@ -1,8 +1,8 @@
 module pc (
-    input logic clk,             // Clock signal
-    input logic reset,           // Asynchronous reset
-    input logic [31:0] next_pc,  // Input for the next PC value
-    output logic [31:0] current_pc // Output of the current PC value
+    input logic clk,                // Clock signal
+    input logic reset,              // Asynchronous reset
+    input logic [31:0] next_pc,     // Input for the next PC value
+    output logic [31:0] current_pc  // Output of the current PC value
 );
 
     // Register to hold the PC value
