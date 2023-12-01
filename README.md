@@ -2,14 +2,14 @@
 
 ## Charlie (qw2246)
 ### PC 
-*Description*
+#### Description
 The program counter is simple a 32-bit register that contains the address of the next instruction to be executed by the processor. Upon reset this will be reset to the start address. 
-*Testbench*
+#### Testbench
 The testbench will first test the reset, then test three normal operations to ensure correct functionality. 
 ### Control Unit
-*Description*
+#### Description
 Control Unit is the central control for the entire processor, which it will parse the instruction that was passed in, and check the opcode (along with funct3 or possiblely funct7) to indentify what operation the ALU should do. 
-*Testbench*
+#### Testbench
 The testbench tested each type of instructions, insure that each type instruction was parsed correctly, and signl outputs were correct. Corner cases like FENCE, ECALL, EBREAK were also validated. 
 
 ## Heng (hw3200)
@@ -18,16 +18,13 @@ The testbench tested each type of instructions, insure that each type instructio
 * The Instruction Memory module is implemented in System Verilog.
 * It is designed to simulate a read-only memory (ROM) segment that stores the processor's instruction set.
 * The module fetches instructions based on the input address and provides them to the processor for execution.
-
 ##### Key Features
 * **Parameterized Design**: The module allows for flexible memory size and data width settings.
 * **Memory Initialization**: The ROM is preloaded with a set of instructions from an external memory file.
 * **Instruction Fetch**: On receiving a read instruction signal, the module fetches the instruction at the given address.
-
 #### Memory File
 * The memory file (`instruction.mem`) contains the preloaded instructions for the processor.
 * Each line in the file represents a 32-bit instruction in hexadecimal format, as per the RV32I instruction set.
-
 ##### Instructions Overview
 * The instructions in the file are a subset of the RISC-V RV32I instruction set.
 * Examples include:
@@ -41,20 +38,14 @@ The testbench tested each type of instructions, insure that each type instructio
   - **ADDI**: Adds an immediate value to a register.
   - **BEQ**: Branches to an address if two registers are equal.
   - **ECALL/EBREAK**: System call or breakpoint instructions for special operations.
-
-
 ### Data Memory
-
-
 #### Module Implementation
 * The `Data` module is a System Verilog implementation designed to emulate the processor's data memory.
 * It incorporates multiple memory arrays and supports various modes of operation for both reading and writing data.
-
 ##### Key Features
 * **Multiple Memory Arrays**: Comprises four separate arrays (`dmem1`, `dmem2`, `dmem3`, `dmem4`), each 8-bit wide and 1024 elements long.
 * **Memory Initialization**: On module startup, all memory arrays are initialized to zero.
 * **Flexible Addressing**: Addressing logic allows for byte-aligned access to 32-bit wide memory, accommodating different read and write operations.
-
 #### Data Access and Manipulation
 * **Address Calculation**: 
   - The `addr_in` input is masked and adjusted to calculate the actual memory address (`addr_dmem`) for data access.
@@ -65,11 +56,9 @@ The testbench tested each type of instructions, insure that each type instructio
 * **Write Operations**:
   - Write operations are contingent on the `w_mode` signal.
   - Data (`din`) can be written in different sizes to the memory arrays depending on the operational mode and the address.
-
 #### Testbench (`Testbench_DM`)
 * The testbench is designed to extensively verify the module's functionality under various scenarios.
 * It includes a clock generation process and simulates different read/write operations.
-
 ##### Testing Scenarios
 * **Initial Conditions**: Verifies the memory's initial state post-reset.
 * **Byte, Half-Word, and Word Access**: Tests reading and writing of different data sizes.
@@ -78,12 +67,12 @@ The testbench tested each type of instructions, insure that each type instructio
 
 ## Jessy (yc7080)
 ### ALU (Arithmetic Logic Unit)
-*Description*
+#### Description
 The ALU performs various arithmetic and logical operations, determined by the alu_ctrl input. It supports a range of operations including addition, subtraction, bitwise operations (XOR, OR, AND), logical and arithmetic shifts, as well as signed/unsigned comparisons. The ALU takes two 32-bit operands as input and produces a 32-bit output based on the selected operation.
-*Testbench*
+#### Testbench
 The ALU testbench verifies each operation by applying different control signals and operands. It checks for correct functionality in arithmetic calculations, bitwise operations, shifts, and comparisons. The test results are displayed, ensuring the ALU operates correctly under various scenarios.
 ### RegisterFile
-*Description*
+#### Description
 The RegisterFile module simulates a 32x32-bit register file. It includes read and write operations, controlled by the input signals. The module ensures that Register 0 always reads zero and is unaffected by write operations. It responds to the positive clock edge and includes a reset functionality.
-*Testbench*
+#### Testbench
 The RegisterFile testbench validates functionality including reset behavior, write operations, read operations, and the behavior of Register 0. It ensures data integrity in read/write operations and that Register 0 always reads zero. The testbench also checks the write enable control, confirming that no data is written when the write enable is low.
