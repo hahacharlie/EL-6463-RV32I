@@ -8,9 +8,9 @@ The program counter is simple a 32-bit register that contains the address of the
 The testbench will first test the reset, then test three normal operations to ensure correct functionality. 
 ### Control Unit
 #### Description
-Control Unit is the central control for the entire processor, which it will parse the instruction that was passed in, and check the opcode (along with funct3 or possiblely funct7) to indentify what operation the ALU should do. 
+Control Unit is the central control for the entire processor, which decodes a 32-bit instruction and generates control signals like `branch`, `mem_read`, `mem_write`, and specific ALU operations, corresponding to different instruction types (R-type, I-type, S-type, B-type, U-type, J-type). The module serves as the central part of the instruction execution process, determining how the CPU's components should respond to each instruction. 
 #### Testbench
-The testbench tested each type of instructions, insure that each type instruction was parsed correctly, and signl outputs were correct. Corner cases like FENCE, ECALL, EBREAK were also validated. 
+The testbench tested each type of instructions. It systematically tests the 'control_unit' by applying various types of instructions (R-type, I-type, S-type, B-type, U-type, J-type, FENCE, ECALL, and EBREAK) and checking the output signals against expected values. The testbench ensures that the 'control_unit' correctly interprets each instruction and generates appropriate control signals, crucial for validating the correct operation of the control unit in a CPU or similar digital system. Corner cases were also added, like `EBREAK`, `ECALL`, `FENCE`. 
 
 ## Heng (hw3200)
 ### Instruction Memory 
