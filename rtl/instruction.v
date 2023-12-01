@@ -1,4 +1,4 @@
-module Instruction #(
+module instruction #(
     parameter ADDR_WIDTH = 10, // Number of bits for addressing ROM
     parameter DATA_WIDTH = 32, // Data width
     parameter ROM_SIZE = 512   // Size of ROM
