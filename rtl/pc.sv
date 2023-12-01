@@ -1,3 +1,26 @@
+`timescale 1ns / 1ps
+
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 11/30/2023 08:17:10 PM
+// Design Name: 
+// Module Name: pc
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
 module pc (
     input logic clk,                // Clock signal
     input logic reset,              // Asynchronous reset
@@ -7,14 +30,8 @@ module pc (
 
     // Register to hold the PC value
     logic [31:0] pc_reg;
-
-    // Assign the output to the PC register
-    assign current_pc = pc_reg;
-
-    // Initial block for simulation purposes
-    initial begin
-        pc_reg = 32'h01000000; // Initialize the PC to the start address
-    end
+    
+    assign current_pc = pc_reg; 
 
     // Sequential logic for updating the PC
     always_ff @(posedge clk or negedge reset) begin

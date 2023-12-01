@@ -1,12 +1,35 @@
+`timescale 1ns / 1ps
+
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 11/30/2023 08:17:10 PM
+// Design Name: 
+// Module Name: control_unit
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+
 module control_unit (
-    input logic [31:0] instruction, // 32-bit instruction
-    output logic branch,            // Branch signal
-    output logic mem_read,          // Memory read signal
-    output logic mem_to_reg,        // Memory to register file signal
-    output logic [3:0] alu_op,      // ALU operation signal
-    output logic mem_write,         // Memory write signal
-    output logic alu_src,           // ALU source signal
-    output logic reg_write          // Register write signal
+    input logic [31:0] instruction,        // 32-bit instruction
+    output logic branch,                   // Branch signal
+    output logic mem_read,            // Memory read signal
+    output logic mem_to_reg,         // Memory to register file signal
+    output logic [3:0] alu_op,          // ALU operation signal
+    output logic mem_write,           // Memory write signal
+    output logic alu_src,                 // ALU source signal
+    output logic reg_write              // Register write signal
 );
 
     // Extract fields from instruction
@@ -40,8 +63,8 @@ module control_unit (
         ALU_BLT = 4'hB,
         ALU_BGE = 4'hC,
         ALU_LUI = 4'hD, 
-        ALU_PASS = 4'hE, 
-        ALU_NOP = 4'hF
+        ALU_AUIPC = 4'hE, 
+        ALU_PASS = 4'hF
     } alu_ops_e;
 
     // Control logic based on the opcode
@@ -78,7 +101,7 @@ module control_unit (
                     end
                     3'h2: alu_op = ALU_OR; // OR
                     3'h3: alu_op = ALU_AND; // AND
-                    default: alu_op = ALU_NOP;
+                    default: alu_op = ALU_ADD;
                 endcase
 
             end
@@ -120,7 +143,7 @@ module control_unit (
                     end
                     3'h6: alu_op = ALU_OR; // ORI
                     3'h7: alu_op = ALU_AND; // ANDI
-                    default: alu_op = ALU_NOP;
+                    default: alu_op = ALU_ADD;
                 endcase
 
             end
@@ -138,7 +161,7 @@ module control_unit (
                     3'h0: alu_op = ALU_ADD; // SB
                     3'h1: alu_op = ALU_ADD; // SH
                     3'h2: alu_op = ALU_ADD; // SW
-                    default: alu_op = ALU_NOP;
+                    default: alu_op = ALU_ADD;
                 endcase
 
             end
@@ -153,18 +176,18 @@ module control_unit (
                 reg_write = 0;
 
                 case (funct3)
-                    3'b000: alu_op = ALU_BEQ;   // For BEQ, branch if equal
-                    3'b001: alu_op = ALU_BNE;   // For BNE, branch if not equal
-                    3'b100: alu_op = ALU_BLT;   // For BLT, branch if less than
-                    3'b101: alu_op = ALU_BGE;   // For BGE, branch if greater than or equal
-                    3'b110: alu_op = ALU_BLT;  // For BLTU, branch if less than, unsigned
-                    3'b111: alu_op = ALU_BGE;  // For BGEU, branch if greater than or equal, unsigned
-                    default: branch = 0;        // Default no branching for unrecognized funct3
+                    3'b000: alu_op = ALU_BEQ;        // For BEQ, branch if equal
+                    3'b001: alu_op = ALU_BNE;        // For BNE, branch if not equal
+                    3'b100: alu_op = ALU_BLT;         // For BLT, branch if less than
+                    3'b101: alu_op = ALU_BGE;      // For BGE, branch if greater than or equal
+                    3'b110: alu_op = ALU_BLT;       // For BLTU, branch if less than, unsigned
+                    3'b111: alu_op = ALU_BGE;     // For BGEU, branch if greater than or equal, unsigned
+                    default: branch = 0;               // Default no branching for unrecognized funct3
                 endcase
 
             end
 
-            // U-type instructions (Load upper immediate)
+            // U-type instructions (LUI: Load upper immediate)
             7'b0110111: begin
                 branch = 0;
                 mem_read = 0;
@@ -176,7 +199,7 @@ module control_unit (
                 alu_op = ALU_LUI;
             end
 
-            // U-type instructions (Add Upper Imm to PC)
+            // U-type instructions (AUIPC: Add Upper Imm to PC)
             7'b0010111: begin
                 branch = 0;
                 mem_read = 0;
@@ -185,10 +208,10 @@ module control_unit (
                 alu_src = 1;
                 reg_write = 1;
 
-                alu_op = ALU_LUI;
+                alu_op = ALU_AUIPC;
             end
 
-            // J-type instructions (branch)
+            // J-type instructions (JAL)
             7'b1101111: begin
                 branch = 1;
                 mem_read = 0;
@@ -201,8 +224,49 @@ module control_unit (
                 // since the immediate offset is added separately
                 alu_op = ALU_PASS;
             end
+            
+            // J_type instructions (JALR)
+            7'b1100111: begin
+                branch = 1;
+                mem_read = 0;
+                mem_to_reg = 0;
+                mem_write = 0;
+                alu_src = 1;
+                reg_write = 1;
+
+                // ALU operation is typically set to pass the PC value through
+                // since the immediate offset is added separately
+                alu_op = ALU_PASS;
+            end
+            
+            // FENCE: Implement as NOP (addi R0, R0, 0)
+            7'b0001111: begin
+                branch = 0;
+                mem_read = 0;
+                mem_to_reg = 0;
+                mem_write = 0;
+                alu_src = 1;
+                reg_write = 1;
+
+                // ALU operation is typically set to pass the PC value through
+                // since the immediate offset is added separately
+                alu_op = ALU_ADD;
+            end
+            
+            // ECALL, EBREAK: Implement as HALT (stop program execution)
+            7'b1110011: begin
+                branch = 0;
+                mem_read = 0;
+                mem_to_reg = 0;
+                mem_write = 0;
+                alu_src = 0;
+                reg_write = 0;
+
+                // ALU operation is typically set to pass the PC value through
+                // since the immediate offset is added separately
+                alu_op = ALU_ADD;
+            end
 
         endcase
     end
 endmodule
-

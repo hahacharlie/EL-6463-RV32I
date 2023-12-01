@@ -1,6 +1,26 @@
 `timescale 1ns / 1ps
 
-module tb_pc();
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 11/30/2023 08:17:57 PM
+// Design Name: 
+// Module Name: pc_tb
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
+
+module pc_tb();
 
     logic clk;
     logic reset;
@@ -23,11 +43,6 @@ module tb_pc();
 
     // Test sequence
     initial begin
-
-        $dumpfile("sim_pc.vcd"); //file to store value change dump (vcd)
-        $dumpvars(0,tb_pc); //store everything at the current level and below
-        $display("Starting Sim"); //print nice message at start
-
         // Initialize signals
         reset = 1;
         next_pc = 32'h01000000;
