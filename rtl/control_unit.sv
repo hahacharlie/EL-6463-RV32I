@@ -1,272 +1,694 @@
 `timescale 1ns / 1ps
 
-//////////////////////////////////////////////////////////////////////////////////
-// Company: 
-// Engineer: 
-// 
-// Create Date: 11/30/2023 08:17:10 PM
-// Design Name: 
-// Module Name: control_unit
-// Project Name: 
-// Target Devices: 
-// Tool Versions: 
-// Description: 
-// 
-// Dependencies: 
-// 
-// Revision:
-// Revision 0.01 - File Created
-// Additional Comments:
-// 
-//////////////////////////////////////////////////////////////////////////////////
+module ControlUnit(
+    input logic clk, rst,
+    input reg [6:0] opcode,
+    input bc,
+    output reg PC_enable, 
+    output reg [1:0] ALU_op
+    );
 
+    // CPU operation opcodes
+    typedef enum reg [6:0] { 
+        LUI = 7'b0110111,
+        AUIPC = 7'b0010111,
+        JAL = 7'b1101111,
+        JALR = 7'b1100111,
+        BRANCH = 7'b1100011,
+        LOAD = 7'b0000011,
+        STORE = 7'b0100011,
+        OP_IMM = 7'b0010011,
+        OP = 7'b0110011,
+        MISC_MEM = 7'b0001111,
+        SYSTEM = 7'b1110011
+    } op_code;
 
-module control_unit (
-    input logic [31:0] instruction,        // 32-bit instruction
-    output logic branch,                   // Branch signal
-    output logic mem_read,            // Memory read signal
-    output logic mem_to_reg,         // Memory to register file signal
-    output logic [3:0] alu_op,          // ALU operation signal
-    output logic mem_write,           // Memory write signal
-    output logic alu_src,                 // ALU source signal
-    output logic reg_write              // Register write signal
-);
+    // State machine states
+    typedef enum reg [2:0] {
+        FETCH = 3'b000,
+        DECODE = 3'b001,
+        EXECUTE = 3'b010,
+        MEMORY = 3'b011,
+        WRITEBACK = 3'b100, 
+        HALT = 3'b101
+    } State;
 
-    // Extract fields from instruction
-    wire [6:0] opcode = instruction[6:0];
-    // wire [4:0] rd = instruction[11:7];
-    wire [2:0] funct3 = instruction[14:12];
-    // wire [4:0] rs1 = instruction[19:15];
-    // wire [4:0] rs2 = instruction[24:20];
-    wire [6:0] funct7 = instruction[31:25];
+    State current_state, next_state;
 
-    // Immediate values for different instruction formats
-    // wire [11:0] imm_I = instruction[31:20];
-    // wire [11:0] imm_S = {instruction[31:25], instruction[11:7]};
-    // wire [12:0] imm_B = {instruction[31], instruction[7], instruction[30:25], instruction[11:8]};
-    // wire [19:0] imm_U = instruction[31:12];
-    // wire [20:0] imm_J = {instruction[31], instruction[19:12], instruction[20], instruction[30:21]};
+    // state reset logic
+    always @(posedge clk or negedge rst) begin
+        if(!rst)
+            current_state <= FETCH;
+        else
+            current_state <= next_state;
+    end
 
-    // Define ALU operation codes
-    typedef enum logic [3:0] {
-        ALU_ADD = 4'h0,
-        ALU_SUB = 4'h1,
-        ALU_SLL = 4'h2,
-        ALU_SLT = 4'h3,
-        ALU_XOR = 4'h4,
-        ALU_SRL = 4'h5,
-        ALU_SRA = 4'h6,
-        ALU_OR = 4'h7,
-        ALU_AND = 4'h8, 
-        ALU_BEQ = 4'h9,
-        ALU_BNE = 4'hA,
-        ALU_BLT = 4'hB,
-        ALU_BGE = 4'hC,
-        ALU_LUI = 4'hD, 
-        ALU_AUIPC = 4'hE, 
-        ALU_PASS = 4'hF
-    } alu_ops_e;
-
-    // Control logic based on the opcode
-    always_comb begin
-
-        case (opcode)
-
-            // R-type instructions
-            7'b0110011: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 0;
-                reg_write = 1;
-                
-                //ALU operation logic based on funct3 and funct7
-                case (funct3)
-                    3'h0: begin // ADD, SUB
-                        case (funct7)
-                            7'h0: alu_op = ALU_ADD;
-                            7'h20: alu_op = ALU_SUB;
-                        endcase
-                    end
-                    3'h4: alu_op = ALU_SLL; // SLL
-                    3'h6: alu_op = ALU_SLT; // SLT
-                    3'h7: alu_op = ALU_SLT; // SLTU
-                    3'h1: alu_op = ALU_XOR; // XOR
-                    3'h5: begin // SRL, SRA
-                        case (funct7)
-                            7'h0: alu_op = ALU_SRL;
-                            7'h20: alu_op = ALU_SRA; 
-                        endcase
-                    end
-                    3'h2: alu_op = ALU_OR; // OR
-                    3'h3: alu_op = ALU_AND; // AND
-                    default: alu_op = ALU_ADD;
-                endcase
-
+    // state transition logic
+    always @(*) begin
+        case(current_state)
+            FETCH: begin
+                next_state = DECODE;
             end
 
-            // I-type instructions (load)
-            7'b0000011: begin // Load instructions
-                branch = 0;
-                mem_read = 1;
-                mem_to_reg = 1;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 0;
-
-                alu_op = ALU_ADD; // most common load alu operation
-
+            DECODE: begin
+                next_state = EXECUTE;
             end
 
-            // I-type instructions (immediate arithmetic)
-            7'b0010011: begin // Load instructions
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                // ALU operation logic based on funct3
-                case (funct3)
-                    3'h0: alu_op = ALU_ADD; // ADDI
-                    3'h1: alu_op = ALU_SLL; // SLLI
-                    3'h2: alu_op = ALU_SLT; // SLTI
-                    3'h3: alu_op = ALU_SLT; // SLTIU
-                    3'h4: alu_op = ALU_XOR; // XORI
-                    3'h5: begin // SRLI, SRAI
-                        case (funct7)
-                            7'h0: alu_op = ALU_SRL;
-                            7'h20: alu_op = ALU_SRA; 
-                        endcase
-                    end
-                    3'h6: alu_op = ALU_OR; // ORI
-                    3'h7: alu_op = ALU_AND; // ANDI
-                    default: alu_op = ALU_ADD;
-                endcase
-
+            EXECUTE: begin
+                next_state = MEMORY;
             end
 
-            // S-type instructions (store)
-            7'b0100011: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 1;
-                alu_src = 1;
-                reg_write = 0;
-
-                case (funct3)
-                    3'h0: alu_op = ALU_ADD; // SB
-                    3'h1: alu_op = ALU_ADD; // SH
-                    3'h2: alu_op = ALU_ADD; // SW
-                    default: alu_op = ALU_ADD;
-                endcase
-
+            MEMORY: begin
+                next_state = WRITEBACK;
             end
 
-            // B-type instructions (branch)
-            7'b1100011: begin
-                branch = 1;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 0;
-                reg_write = 0;
-
-                case (funct3)
-                    3'b000: alu_op = ALU_BEQ;        // For BEQ, branch if equal
-                    3'b001: alu_op = ALU_BNE;        // For BNE, branch if not equal
-                    3'b100: alu_op = ALU_BLT;         // For BLT, branch if less than
-                    3'b101: alu_op = ALU_BGE;      // For BGE, branch if greater than or equal
-                    3'b110: alu_op = ALU_BLT;       // For BLTU, branch if less than, unsigned
-                    3'b111: alu_op = ALU_BGE;     // For BGEU, branch if greater than or equal, unsigned
-                    default: branch = 0;               // Default no branching for unrecognized funct3
-                endcase
-
+            WRITEBACK: begin
+                next_state = FETCH;
             end
 
-            // U-type instructions (LUI: Load upper immediate)
-            7'b0110111: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                alu_op = ALU_LUI;
+            HALT: begin
+                if (opcode != 7'b000000) begin
+                    next_state = HALT;
+                end else begin
+                    next_state = FETCH;
+                end
             end
-
-            // U-type instructions (AUIPC: Add Upper Imm to PC)
-            7'b0010111: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                alu_op = ALU_AUIPC;
-            end
-
-            // J-type instructions (JAL)
-            7'b1101111: begin
-                branch = 1;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                // ALU operation is typically set to pass the PC value through
-                // since the immediate offset is added separately
-                alu_op = ALU_PASS;
-            end
-            
-            // J_type instructions (JALR)
-            7'b1100111: begin
-                branch = 1;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                // ALU operation is typically set to pass the PC value through
-                // since the immediate offset is added separately
-                alu_op = ALU_PASS;
-            end
-            
-            // FENCE: Implement as NOP (addi R0, R0, 0)
-            7'b0001111: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 1;
-                reg_write = 1;
-
-                // ALU operation is typically set to pass the PC value through
-                // since the immediate offset is added separately
-                alu_op = ALU_ADD;
-            end
-            
-            // ECALL, EBREAK: Implement as HALT (stop program execution)
-            7'b1110011: begin
-                branch = 0;
-                mem_read = 0;
-                mem_to_reg = 0;
-                mem_write = 0;
-                alu_src = 0;
-                reg_write = 0;
-
-                // ALU operation is typically set to pass the PC value through
-                // since the immediate offset is added separately
-                alu_op = ALU_ADD;
-            end
-
         endcase
     end
+    
+    // state output logic
+    always @(posedge clk) begin
+        case(current_state)
+            HALT: begin // HALT the entire CPU
+                PC_s_ = 1'b0; 
+                PC_we_temp = 1'b0;  
+                Instr_rd_temp = 1'b0; 
+                RegFile_s_temp = 1'b0;  
+                RegFile_we_temp = 1'b0; 
+                Imm_op_temp = 1'b0; 
+                ALU_s1_temp = 1'b0; 
+                ALU_s2_temp = 1'b0; 
+                ALU_op_temp = 2'b00;
+                DataMem_rd_temp = 1'b0; 
+                Data_op_temp = 2'b00; 
+                Data_s_temp = 1'b0;
+                Data_we_temp = 1'b0;
+                Bc_Op_temp = 1'b0; 
+            end
+        
+            FETCH: begin
+                PC_s_temp = 1'b0; 
+                PC_we_temp = 1'b0; // allow adder write to pc  
+                Instr_rd_temp = 1'b1; // get the current memory
+                RegFile_s_temp = 1'b0; 
+                // that's all the signal we need to get the command 
+                RegFile_we_temp = 1'b0; 
+                Imm_op_temp = 1'b0; 
+                ALU_s1_temp = 1'b0; 
+                ALU_s2_temp = 1'b0; 
+                ALU_op_temp = 2'b00;
+                DataMem_rd_temp = 1'b0; 
+                Data_op_temp = 2'b00; 
+                Data_s_temp = 1'b0;
+                Data_we_temp = 1'b0;
+                Bc_Op_temp = 1'b0;
+            end
+        
+            DECODE: begin
+                PC_s_temp = 1'b0; 
+                PC_we_temp = 1'b0; // allow adder write to pc  
+                Instr_rd_temp = 1'b1; // get the current memory
+                RegFile_s_temp = 1'b0; 
+                // that's all the signal we need to get the command 
+                RegFile_we_temp = 1'b0; 
+                Imm_op_temp = 1'b0; 
+                ALU_s1_temp = 1'b0; 
+                ALU_s2_temp = 1'b0; 
+                ALU_op_temp = 2'b00;
+                DataMem_rd_temp = 1'b0; 
+                Data_op_temp = 2'b00; 
+                Data_s_temp = 1'b0;
+                Data_we_temp = 1'b0;
+                Bc_Op_temp = 1'b0;
+            end
+        
+            EXECUTE: begin 
+                case (opcode)
+                    : 
+                    default: 
+                endcase
+            end
+
+        MEM: begin
+            // this stage stores data back to reg or mem
+            case(opcode)
+                7'b0110011: begin // R-type
+                //rd = rs1 + rs2
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; // add pc counter while store value, so we can continue
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // select alu result
+
+                    RegFile_we_temp = 1'b0;  // write alu result
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0;  
+                    ALU_s2_temp = 1'b1; 
+                    ALU_op_temp = 1'b00; 
+
+                    //store 
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take ALU result
+                    Data_we_temp = 1'b0; 
+                    Bc_Op_temp = 1'b0;
+                end
+
+               7'b0000011: begin // I-type load and store in rd
+
+                //rd=sign_ext(data[rs1+sign_ext(imm)][7:0])
+
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // select data 
+
+                    RegFile_we_temp = 1'b0;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+                
+                7'b0010011: begin // I-type addi ori andi ....
+                // ! also implement fence here since it says to do the same as addi.
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // select data 
+
+                    RegFile_we_temp = 1'b0;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu cal output 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+                
+                7'b0001111: begin // this is the same as above
+                // ! also implement fence here since it says to do the same as addi.
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // select data 
+
+                    RegFile_we_temp = 1'b0;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu cal output 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+
+                 7'b0100011: begin // S-type store 
+                 //e.g. data[rs1+sign_ext(imm)][7:0] = rs2[7:0]
+
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; 
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0;  
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;  // store 
+                    
+                    // we need to wait for this step and then store
+                    DataMem_rd_temp = 1'b0; // store to data
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0;
+                    Data_we_temp = 1'b0; // TODO: check value  may depend on funct3
+                    Bc_Op_temp = 1'b0;
+                end
+
+                 7'b1100011: begin // B-type Store ... of rs2 to memory
+                // e.g. PC=(rs1==rs2) ? PC+sign_ext(imm) : PC+4
+
+                    PC_s_temp = 1'b0; // choose what to take base on bc
+                    PC_we_temp = 1'b0; // write pc 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; 
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b1; 
+                    ALU_op_temp = 2'b01; // cal: check branch
+
+                    // may need to wait here 
+                    DataMem_rd_temp = 1'b0; // 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; // ! branch info based on branch control 
+                    Data_we_temp = 1'b0; // TODO: check value 
+                    Bc_Op_temp = 1'b1; // use branch control
+                end
+
+
+                  7'b0110111: begin // U-type load
+                    //e.g. rd={imm[31:12]; 12'b0}
+                    PC_s_temp = 1'b1; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // select ALu
+
+                    RegFile_we_temp = 1'b0; // enable reg write
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0; 
+                    ALU_op_temp = 2'b00; // alu load
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // choose alu
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+
+
+                7'b1101111: begin // J-type jump and link 
+
+                //rd=PC+4; PC=PC+sign_ext(imm)
+                    // we do PC=PC+sign_ext(imm) this step
+                    PC_s_temp = 1'b0; // choose alu value
+                    PC_we_temp = 1'b0; // write alu value to pc
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; // write  PC=PC+sign_ext
+                    Imm_op_temp = 1'b0;
+                    ALU_s1_temp = 1'b0;
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; //select ALU
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end  
+                
+                7'b1100111: begin // JALR 
+
+                    PC_s_temp = 1'b0; // choose alu value
+                    PC_we_temp = 1'b0; // write alu value to pc
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; // write  PC=PC+sign_ext
+                    Imm_op_temp = 1'b0;
+                    ALU_s1_temp = 1'b0;
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; //select ALU
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end  
+                
+                 7'b0010111: begin // AUIPC  
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; // take alu 
+
+                    RegFile_we_temp = 1'b0; // write pc + 4
+                   Imm_op_temp = 1'b1; // set since we load imm
+                    ALU_s1_temp = 1'b1; // select Reg1
+                    ALU_s2_temp = 1'b0; // select imm
+                    ALU_op_temp = 2'b10; // alu do plus
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu 
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end
+            endcase
+        end
+        
+        WRITEBACK: begin
+                   case(opcode)
+                7'b0110011: begin // R-type
+                //rd = rs1 + rs2
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; // add pc counter while store value, so we can continue
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // select alu result
+
+                    RegFile_we_temp = 1'b1;  // write alu result
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0;  
+                    ALU_s2_temp = 1'b1; 
+                    ALU_op_temp = 1'b00; 
+
+                    //store 
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take ALU result
+                    Data_we_temp = 1'b0; 
+                    Bc_Op_temp = 1'b0;
+                end
+
+               7'b0000011: begin // I-type load and store in rd
+
+                //rd=sign_ext(data[rs1+sign_ext(imm)][7:0])
+
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // select data 
+
+                    RegFile_we_temp = 1'b1;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+                
+                7'b0010011: begin // I-type addi ori andi ....
+                // ! also implement fence here since it says to do the same as addi.
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // select data 
+
+                    RegFile_we_temp = 1'b1;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu cal output 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+                
+                7'b0001111: begin // this is the same as above
+                // ! also implement fence here since it says to do the same as addi.
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // select data 
+
+                    RegFile_we_temp = 1'b1;  // write data to reg
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00; 
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu cal output 
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+
+                 7'b0100011: begin // S-type store 
+                 //e.g. data[rs1+sign_ext(imm)][7:0] = rs2[7:0]
+
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; 
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0;  
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;  // store 
+                    
+                    // we need to wait for this step and then store
+                    DataMem_rd_temp = 1'b0; // store to data
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0;
+                    Data_we_temp = 1'b1; // TODO: check value  may depend on funct3
+                    Bc_Op_temp = 1'b0;
+                end
+
+                 7'b1100011: begin // B-type Store ... of rs2 to memory
+                // e.g. PC=(rs1==rs2) ? PC+sign_ext(imm) : PC+4
+
+                    PC_s_temp = bc; // choose what to take base on bc
+                    PC_we_temp = 1'b0; // write pc  1
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b0; 
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0; 
+                    ALU_op_temp = 2'b01; // cal: check branch
+
+                    // may need to wait here 
+                    DataMem_rd_temp = 1'b0; // 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = bc; // ! branch info based on branch control 
+                    Data_we_temp = 1'b0; // TODO: check value 
+                    Bc_Op_temp = 1'b0; // use branch control
+                end
+
+
+                  7'b0110111: begin // U-type load
+                    //e.g. rd={imm[31:12]; 12'b0}
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b1; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // select ALu
+
+                    RegFile_we_temp = 1'b1; // enable reg write
+                    Imm_op_temp = 1'b0; 
+                    ALU_s1_temp = 1'b0; 
+                    ALU_s2_temp = 1'b0; 
+                    ALU_op_temp = 2'b00; // alu load
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // choose alu
+                    Data_we_temp = 1'b0;
+                    Bc_Op_temp = 1'b0;
+                end
+
+
+                7'b1101111: begin // J-type jump and link 
+
+                //rd=PC+4; PC=PC+sign_ext(imm)
+                    // we do PC=PC+sign_ext(imm) this step
+                    PC_s_temp = 1'b1; // choose alu value
+                    PC_we_temp = 1'b1; // write alu value to pc
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b0; 
+
+                    RegFile_we_temp = 1'b1; // write  PC=PC+sign_ext
+                    Imm_op_temp = 1'b0;
+                    ALU_s1_temp = 1'b0;
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b0; //select ALU
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end  
+                
+                 7'b1100111: begin // JALR
+
+                    PC_s_temp = 1'b1; // choose alu value
+                    PC_we_temp = 1'b1; // write alu value to pc
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // write  PC=PC+sign_ext
+
+                    RegFile_we_temp = 1'b1; // write  PC=PC+sign_ext
+                    Imm_op_temp = 1'b0;
+                    ALU_s1_temp = 1'b0;
+                    ALU_s2_temp = 1'b0;
+                    ALU_op_temp = 2'b00;
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; //select ALU
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end 
+                
+                7'b0010111: begin // AUIPC  
+                    PC_s_temp = 1'b0; 
+                    PC_we_temp = 1'b0; 
+                    Instr_rd_temp = 1'b0;
+                    RegFile_s_temp = 1'b1; // take alu 
+
+                    RegFile_we_temp = 1'b1; // write alu output 
+                    Imm_op_temp = 1'b1; // set since we load imm
+                    ALU_s1_temp = 1'b1; // select Reg1
+                    ALU_s2_temp = 1'b0; // select imm
+                    ALU_op_temp = 2'b10; // alu do plus
+
+                    DataMem_rd_temp = 1'b0; 
+                    Data_op_temp = 1'b0; 
+                    Data_s_temp = 1'b1; // take alu 
+                    Data_we_temp = 1'b0; // need to double check 
+                    Bc_Op_temp = 1'b0;
+                end
+            endcase
+        end
+        
+        BRANCH_PAUSE_END: begin
+
+            PC_s_temp = bc; // choose what to take base on bc
+            PC_we_temp = 1'b1; // write pc 
+            Instr_rd_temp = 1'b0;
+            RegFile_s_temp = 1'b0; 
+
+            RegFile_we_temp = 1'b0; 
+            Imm_op_temp = 1'b0; 
+            ALU_s1_temp = 1'b0; 
+            ALU_s2_temp = 1'b0; 
+            ALU_op_temp = 2'b00; // cal: check branch
+
+            // may need to wait here 
+            DataMem_rd_temp = 1'b0; // 
+            Data_op_temp = 1'b0; 
+            Data_s_temp = bc; // ! branch info based on branch control 
+            Data_we_temp = 1'b0; // TODO: check value 
+            Bc_Op_temp = 1'b0; // use branch control
+        end
+    endcase
+   end
+   
+//   PC_s_temp, PC_we_temp, Instr_rd_temp, RegFile_s_temp, RegFile_we_temp, Imm_op_temp, ALU_s1_temp, ALU_s2_temp, DataMem_rd_temp, Data_op_temp, data_s_temp, Bc_Op_temp;
+   always @(posedge clk or negedge rst) begin
+    if(!rst) begin
+        PC_s   = 1'b0;
+        PC_we     = 1'b0;
+        Instr_rd    = 1'b0;
+        RegFile_s     = 1'b0;
+        RegFile_we      = 1'b0;
+        Imm_op = 1'b0;
+        ALU_s1    = 1'b0;
+        ALU_s2      = 2'b00;
+        ALU_op_temp = 2'b00;
+        DataMem_rd    = 1'b0;
+        Data_op    = 1'b0;
+        Data_s       = 1'b0; 
+        Data_we  = 1'b0; 
+        Bc_Op        = 1'b0; 
+    end
+    else begin
+        PC_s         = PC_s_temp;
+        PC_we        = PC_we_temp;
+        Instr_rd     = Instr_rd_temp;
+        RegFile_s    = RegFile_s_temp;
+        RegFile_we   = RegFile_we_temp;
+        Imm_op       = Imm_op_temp;
+        ALU_s1       = ALU_s1_temp;
+        ALU_s2       = ALU_s2_temp;
+        ALU_op       = ALU_op_temp;
+        DataMem_rd   = DataMem_rd_temp;
+        Data_op      = Data_op_temp;
+        Data_s       = Data_s_temp;
+        Data_we      = Data_we_temp; 
+        Bc_Op        = Bc_Op_temp;
+    end
+end
+   
+   //FSM
+always @(*) begin
+    case(curr_state)
+        INITALIZE : 
+            if(!rst)
+                next_state = INITALIZE;
+            else
+                next_state = FETCH_INSTRUCTION;
+                
+        FETCH_INSTRUCTION :
+            if(!rst)
+                next_state = INITALIZE;
+            else
+                next_state = FETCH_DECODE;
+                
+        FETCH_DECODE: 
+            if(!rst)
+                next_state = INITALIZE;
+            else if(opcode == 7'b1110011)
+                next_state = HALT;
+            else
+                next_state = EXECUTION;
+                
+        EXECUTION :
+            if(!rst)
+                next_state = INITALIZE;
+            else
+                next_state = MEM;
+                
+        MEM : 
+         if(!rst)
+                next_state = INITALIZE;
+         else
+                next_state = WRITEBACK;
+                
+        WRITEBACK  : 
+         if(!rst)
+                next_state = INITALIZE;
+        else if(opcode == 7'b1100011) begin
+                next_state = BRANCH_PAUSE;
+             end 
+         else
+                next_state = FETCH_INSTRUCTION;
+         HALT:
+            if(!rst)
+                next_state = INITALIZE;
+            else
+                next_state = HALT;
+         
+         
+         
+         // pause for branch 
+         BRANCH_PAUSE: 
+            if(!rst) next_state = INITALIZE;
+            else  next_state = BRANCH_PAUSE_END;
+            
+        BRANCH_PAUSE_END:
+            if(!rst) next_state = INITALIZE;
+            else  next_state = FETCH_INSTRUCTION;
+        default:
+            next_state = INITALIZE;
+    endcase
+end    
+    
 endmodule
